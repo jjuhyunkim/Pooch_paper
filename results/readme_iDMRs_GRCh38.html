@@ -1,0 +1,163 @@
+<H2>Description</H2>
+<P>
+This track presents maternal-versus-paternal differentially methylated regions
+(DMRs) in GRCh38 coordinates. DMRs were originally identified in CHM13v2.0
+coordinates using methylation data from HPRC release v2 assemblies and
+subsequently lifted over to GRCh38.
+</P>
+<P>
+Analyses included 123 samples for autosomes and 50 female samples
+balanced for the inferred X inactivation status.
+</P>
+
+<H2>Display Conventions and Configuration</H2>
+<P>
+Regions are colored according to the direction and magnitude of the
+methylation difference, calculated as maternal minus paternal methylation:
+</P>
+<UL>
+  <LI>
+    <SPAN STYLE="color: #FF0000;"><B>Red</B></SPAN>:
+    Strong maternal hypermethylation
+    (methylation difference &ge; 0.15).
+  </LI>
+  <LI>
+    <SPAN STYLE="color: #E78080;"><B>Pink</B></SPAN>:
+    Moderate maternal hypermethylation
+    (0 &lt; methylation difference &lt; 0.15).
+  </LI>
+  <LI>
+    <SPAN STYLE="color: #8484FC;"><B>Light blue</B></SPAN>:
+    Moderate paternal hypermethylation
+    (-0.15 &lt; methylation difference &lt; 0).
+  </LI>
+  <LI>
+    <SPAN STYLE="color: #0000FF;"><B>Blue</B></SPAN>:
+    Strong paternal hypermethylation
+    (methylation difference &le; -0.15).
+  </LI>
+</UL>
+<P>
+Positive differences indicate higher methylation on the maternal haplotype,
+whereas negative differences indicate higher methylation on the paternal
+haplotype. 
+Methylation values and color classifications were retained from the
+CHM13v2.0 analysis.
+</P>
+
+<H2>Methods</H2>
+
+<H3>Read Alignment and Methylation Processing</H3>
+<P>
+Assemblies and Oxford Nanopore Technologies (ONT) sequencing data for
+123 samples were downloaded from the HPRC AWS bucket. ONT reads carrying
+methylation tags were aligned to the corresponding personalized diploid
+assemblies using Winnowmap v2.03 with the parameters
+<CODE>-x map-ont -I 8G --MD --cs -y -a -Y -L --eqx</CODE>.
+Only primary alignments were retained. Methylated read counts and total
+coverage at individual CpG sites were obtained using modkit v0.4.1.
+</P>
+
+<H3>Liftover to CHM13v2.0</H3>
+<P>
+Each diploid assembly was separated into its two haplotypes.
+Haplotype-to-CHM13v2.0 alignments and chain files were generated using
+nf-LO and minimap2. Methylation calls were lifted over to CHM13v2.0
+using CrossMap v0.7.0. Negative-strand coordinates were adjusted by
+&minus;1 bp to place calls on the cytosine of the corresponding CpG.
+</P>
+
+<H3>Chromosome X Sample Selection</H3>
+<P>
+For chromosome X, samples were classified according to which 
+parental haplotype showed greater overall X inactivation.
+Mean XIST promoter methylation
+was calculated for each haplotype. A positive maternal-minus-paternal
+difference indicated preferential paternal X inactivation, whereas a
+negative difference indicated preferential maternal X inactivation.
+</P>
+<P>
+Among 59 female samples, 34 were classified as having preferential paternal
+X inactivation and 25 as having preferential maternal X inactivation.
+Chromosome X analysis included all 25 samples with preferential maternal
+X inactivation and 25 randomly selected samples with preferential paternal
+X inactivation.
+</P>
+
+<H3>Differential Methylation Analysis</H3>
+<P>
+Differential methylation analysis was performed by chromosome using DSS v2.58.0 in R v4.5.3.
+Methylated read counts and total coverage were
+extracted separately for maternal and paternal haplotypes across 123 samples
+for autosomes and 50 samples for chromosome X, and combined into a BSseq
+object. CpG sites with missing methylation data in more than 5% of samples
+were excluded.
+</P>
+<P>
+A paired design was used to account for inter-sample variability, with
+sample identity included as a fixed effect. Models were fitted using
+<CODE>DMLfit.multiFactor()</CODE> with the formula
+<CODE>~ haplotype + sample</CODE>. Haplotype-associated methylation
+differences were evaluated using <CODE>DMLtest.multiFactor()</CODE>,
+which applies a Wald test to the haplotype term.
+</P>
+<P>
+DMRs were identified using <CODE>callDMR()</CODE> with a P-value threshold
+of 0.001 and otherwise default parameters. Neighboring DMRs separated by
+no more than 1,000 bp were merged if they showed the same direction of
+maternal-versus-paternal methylation differences. This reduced the number
+of regions from 1,509 to 880 in the CHM13v2.0 dataset.
+</P>
+
+<H3>Transfer to GRCh38 and Post-processing</H3>
+<P>
+The consolidated CHM13v2.0 DMRs were lifted over to GRCh38 using
+<CODE>CrossMap bed</CODE> with the
+<CODE>chm13v2-grch38.chain</CODE> chain file.
+</P>
+
+<P>
+To consolidate intervals fragmented during liftOver, mapped fragments
+originating from the same source DMR were merged when they were located on
+the same chromosome and separated by no more than 10,000 bp.
+Of the 880 DMRs identified in CHM13v2.0 coordinates, 10 could not be lifted
+over to GRCh38. After liftOver and fragment consolidation, the final
+GRCh38 track contained 870 regions.
+</P>
+
+
+<H2>Credits</H2>
+<P>
+Juhyun Kim
+(<A HREF="mailto:juhyun.kim@jhu.edu">juhyun.kim@jhu.edu</A>)
+and Brandon D. Pickett
+(<A HREF="mailto:pickettbd@gmail.com">pickettbd@gmail.com</A>).
+</P>
+
+<H2>References</H2>
+<UL>
+  <LI>
+    Lucas, Julian K., et al.
+    "HPRC2: A human pangenome reference with near-complete coverage of common
+    genetic variation." bioRxiv (2026): 2026-07.
+  </LI>
+  <LI>
+    Feng, Hao, and Hao Wu.
+    "Differential methylation analysis for bisulfite sequencing using DSS."
+    Quantitative Biology 7.4 (2019): 327–334.
+  </LI>
+  <LI>
+    Talenti, Andrea, and James Prendergast.
+    "nf-LO: a scalable, containerized workflow for genome-to-genome lift over."
+    Genome Biology and Evolution 13.9 (2021): evab183.
+  </LI>
+  <LI>
+    Oxford Nanopore Technologies.
+    <A HREF="https://github.com/nanoporetech/modkit">modkit</A>.
+  </LI>
+  <LI>
+    Zhao, Hao, et al.
+    "CrossMap: a versatile tool for coordinate conversion between genome
+    assemblies." Bioinformatics 30.7 (2014): 1006–1007.
+  </LI>
+</UL>
