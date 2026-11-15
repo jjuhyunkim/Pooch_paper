@@ -1,0 +1,38 @@
+#!/bin/bash
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64G
+#SBATCH --gres=lscratch:100
+#SBATCH --time=12:00:00
+
+module load samtools
+module load minimap2
+module load nextflow/24.04.1
+module load blat
+module load crossmap
+module load graphviz
+module load ucsc
+module load python/3.9
+
+export NXF_SINGULARITY_CACHEDIR=/data/$USER/nxf_singularity_cache;
+export SINGULARITY_CACHEDIR=/data/$USER/.singularity;
+export TMPDIR=/lscratch/$SLURM_JOB_ID
+export NXF_JVM_ARGS="-Xms2g -Xmx4g"
+
+export CHAINTOOLSDIR=/home/nhansen/chaintools
+export PYTHONPATH=$CHAINTOOLSDIR:${PYTHONPATH}
+
+export SOURCEFASTA=$1
+export TARGETFASTA=$2
+export OUTDIR=$3
+
+export PREFIX=`echo $OUTDIR | sed 's:.*/::'`
+
+#cp /data/Phillippy2/projects/hprc-assemblies/assemblies-v3/mm2_nflo_chains/nextflow.config .
+#rm nextflow.config
+#nextflow run nf-LO/main.nf --source $SOURCEFASTA --target $TARGETFASTA --outdir $OUTDIR -profile biowulf --aligner minimap2 --max_cpus 2 --max_memory 64g -resume
+nextflow run nf-LO/main.nf --source $SOURCEFASTA --target $TARGETFASTA --outdir $OUTDIR -profile local --aligner minimap2 --max_cpus 2 --max_memory 64g -resume
+python $CHAINTOOLSDIR/chaintools/split.py -c $OUTDIR/chainnet/liftover.chain -o $PREFIX-split.chain
+python $CHAINTOOLSDIR/chaintools/to_paf.py -c $PREFIX-split.chain -t $SOURCEFASTA -q $TARGETFASTA -o $PREFIX-split.paf
+cat $PREFIX-split.paf | rb break-paf --max-size 10000 | rb trim-paf -r | rb invert | rb trim-paf -r | rb invert > $PREFIX.paf
+paf2chain -i $PREFIX.paf > $PREFIX.chain
+python $CHAINTOOLSDIR/chaintools/invert.py -c $PREFIX.chain -o $PREFIX.inverted.chain

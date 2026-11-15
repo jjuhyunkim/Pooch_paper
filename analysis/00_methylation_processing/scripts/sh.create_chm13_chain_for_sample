@@ -1,0 +1,60 @@
+#!/bin/bash
+
+export SAMPLE=$1
+
+export TOPDIR=/data/Phillippy2/projects/hprc-assemblies/assemblies-v4
+export CHM13FASTA=/data/Phillippy2/projects/belluck_dmr/chm13/v2.0/chm13v2.fa
+export NFLOPIPELINEDIR=/data/Phillippy/projects/HG002_diploid/chainfiles/v0.7_mat_vs_pat/nf-LO
+
+if [[ ! -d $TOPDIR/mm2_nflo_chains/$SAMPLE ]]; then
+    mkdir $TOPDIR/mm2_nflo_chains/$SAMPLE
+    export NEWSAMPLE=YES
+    echo "New sample "$SAMPLE
+else
+    export NEWSAMPLE=NO
+fi
+
+cd $TOPDIR/mm2_nflo_chains/$SAMPLE
+export HAP1FASTA=$TOPDIR/$SAMPLE/verkko-thic/analysis/assembly.refOriented.haplotype1.fasta.gz
+export HAP2FASTA=$TOPDIR/$SAMPLE/verkko-thic/analysis/assembly.refOriented.haplotype2.fasta.gz
+
+if [[ $NEWSAMPLE == "YES" ]]; then
+    echo "Making links"
+    ln -sf $CHM13FASTA $CHM13FASTA.fai ./
+    ln -sf $NFLOPIPELINEDIR ./
+    ln -sf $HAP1FASTA ./assembly.refOriented.haplotype1.fasta.gz
+    ln -sf $HAP2FASTA ./assembly.refOriented.haplotype2.fasta.gz
+    cp $TOPDIR/mm2_nflo_chains/sh.nflo_pipeline ./
+fi
+
+# check for failed runs and resubmit:
+if [[ -e $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap1.inverted.chain ]]; then
+    if [[ ! -s $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap1.inverted.chain ]]; then
+	echo "Failed run for "$SAMPLE" haplotype 1"
+        cp $TOPDIR/mm2_nflo_chains/sh.nflo_pipeline ./
+        ln -sf $HAP1FASTA ./assembly.refOriented.haplotype1.fasta.gz
+	rm chm13v2_to_$SAMPLE\_hap1.*
+	rm -rf chm13v2_to_$SAMPLE\_hap1/
+	sbatch -o $SAMPLE.hap1.%A_%a.nflo.out -e $SAMPLE.hap1.%A_%a.nflo.err -t 4:00:00 --mem=64g sh.nflo_pipeline chm13v2.fa assembly.refOriented.haplotype1.fasta.gz chm13v2_to_$SAMPLE\_hap1
+    fi
+fi
+if [[ -e $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap2.inverted.chain ]]; then
+    if [[ ! -s $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap2.inverted.chain ]]; then
+	echo "Failed run for "$SAMPLE" haplotype 2"
+        cp $TOPDIR/mm2_nflo_chains/sh.nflo_pipeline ./
+        ln -sf $HAP2FASTA ./assembly.refOriented.haplotype2.fasta.gz
+	rm chm13v2_to_$SAMPLE\_hap2.*
+	rm -rf chm13v2_to_$SAMPLE\_hap2/
+	rm -rf work
+	sbatch -o $SAMPLE.hap2.%A_%a.nflo.out -e $SAMPLE.hap2.%A_%a.nflo.err -t 4:00:00 --mem=64g sh.nflo_pipeline chm13v2.fa assembly.refOriented.haplotype2.fasta.gz chm13v2_to_$SAMPLE\_hap2
+    fi
+fi
+
+if [[ $NEWSAMPLE == "YES" ]]; then
+#if [[ ! -s $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap1.inverted.chain ]]; then
+#if [[ ! -s $TOPDIR/mm2_nflo_chains/$SAMPLE/chm13v2_to_$SAMPLE\_hap2.inverted.chain ]]; then
+    echo "New sample--submitting first attempts"
+    sbatch -o $SAMPLE.hap1.%A_%a.nflo.out -e $SAMPLE.hap1.%A_%a.nflo.err -t 4:00:00 --mem=64g sh.nflo_pipeline chm13v2.fa assembly.refOriented.haplotype1.fasta.gz chm13v2_to_$SAMPLE\_hap1
+    #sbatch -o $SAMPLE.hap2.%A_%a.nflo.out -e $SAMPLE.hap2.%A_%a.nflo.err -t 4:00:00 --mem=64g sh.nflo_pipeline chm13v2.fa assembly.refOriented.haplotype2.fasta.gz chm13v2_to_$SAMPLE\_hap2
+fi
+
